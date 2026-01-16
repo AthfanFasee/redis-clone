@@ -13,6 +13,8 @@ func main() {
 		return
 	}
 
+	fmt.Println("Listening on port :6379")
+
 	conn, err := listener.Accept()
 	if err != nil {
 		fmt.Printf("failed to accept TCP connection: %v", err)
@@ -29,17 +31,17 @@ func main() {
 		}
 	}()
 
+	resp := NewResp(conn)
 	for {
-		buf := make([]byte, 1024)
-
-		// Read message from client
-		_, err := conn.Read(buf)
+		value, err := resp.Read()
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			fmt.Printf("error reading from client: %v", err)
 		}
+
+		fmt.Println(value)
 
 		_, err = conn.Write([]byte("+PONG\r\n"))
 		if err != nil {

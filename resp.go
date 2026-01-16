@@ -33,9 +33,9 @@ func NewResp(rd io.Reader) *Resp {
 
 // readLine reads a RESP line and returns the line content (without CRLF)
 // along with the total number of bytes consumed from the stream (including CRLF).
-func (r *Resp) readLine() (line []byte, n int, err error) {
+func (r *Resp) readLine() (line []byte, bytesRead int, err error) {
 	for {
-		b, err := r.reader.ReadByte()
+		currentByte, err := r.reader.ReadByte()
 		if err != nil {
 			return nil, 0, err
 		}
@@ -45,8 +45,8 @@ func (r *Resp) readLine() (line []byte, n int, err error) {
 		// This is critical for RESP parsing, since higher-level parsers
 		// need to know exactly how many bytes were consumed and where
 		// the next value starts in the stream.
-		n++
-		line = append(line, b)
+		bytesRead++
+		line = append(line, currentByte)
 
 		// RESP lines are terminated by `\r\n`.
 		// We cannot stop immediately on `\r`, because doing so would
@@ -59,13 +59,13 @@ func (r *Resp) readLine() (line []byte, n int, err error) {
 	}
 
 	// Return the line without the trailing `\r\n`.
-	return line[:len(line)-2], n, nil
+	return line[:len(line)-2], bytesRead, nil
 }
 
 // readInteger reads a RESP integer (e.g. `:1000\r\n`) from the stream.
 // It returns the parsed integer value, the total number of bytes consumed (including CRLF).
-func (r *Resp) readInteger() (x int, n int, err error) {
-	line, n, err := r.readLine()
+func (r *Resp) readInteger() (x int, bytesRead int, err error) {
+	line, bytesRead, err := r.readLine()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -73,18 +73,18 @@ func (r *Resp) readInteger() (x int, n int, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	return int(i64), n, nil
+	return int(i64), bytesRead, nil
 }
 
 // Read reads the next RESP value from the stream by inspecting
 // the leading type byte and dispatching to the appropriate parser.
 func (r *Resp) Read() (Value, error) {
-	t, err := r.reader.ReadByte()
+	respType, err := r.reader.ReadByte()
 	if err != nil {
 		return Value{}, err
 	}
 
-	switch t {
+	switch respType {
 	case ARRAY:
 		return r.readArray()
 	case BULK:
@@ -92,7 +92,7 @@ func (r *Resp) Read() (Value, error) {
 	default:
 		// RESP defines additional types (simple strings, errors, integers).
 		// Returning an error here prevents silent protocol desync.
-		return Value{}, fmt.Errorf("unknown RESP type byte: %q", t)
+		return Value{}, fmt.Errorf("unknown RESP type byte: %q", respType)
 	}
 }
 
@@ -101,19 +101,19 @@ func (r *Resp) readArray() (Value, error) {
 	v := Value{typ: "array"}
 
 	// Read array length (number of elements)
-	length, _, err := r.readInteger()
+	arrayLength, _, err := r.readInteger()
 	if err != nil {
 		return v, err
 	}
 
 	// Parse each element recursively using Read()
-	v.array = make([]Value, length)
-	for i := 0; i < length; i++ {
-		val, err := r.Read()
+	v.array = make([]Value, arrayLength)
+	for i := 0; i < arrayLength; i++ {
+		arrayElement, err := r.Read()
 		if err != nil {
 			return v, err
 		}
-		v.array[i] = val
+		v.array[i] = arrayElement
 	}
 
 	return v, nil
