@@ -43,7 +43,8 @@ func main() {
 
 		fmt.Println(value)
 
-		_, err = conn.Write([]byte("+PONG\r\n"))
+		writer := NewWriter(conn)
+		writer.Write(Value{typ: "string", str: "PONG"})
 		if err != nil {
 			fmt.Printf("error writing to client: %v", err)
 		}

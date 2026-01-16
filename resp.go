@@ -23,6 +23,8 @@ type Value struct {
 	array []Value
 }
 
+// READER
+
 type Resp struct {
 	reader *bufio.Reader
 }
@@ -153,4 +155,103 @@ func (r *Resp) readBulk() (Value, error) {
 	}
 
 	return v, nil
+}
+
+// WRITER
+
+type Writer struct {
+	writer io.Writer
+}
+
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{writer: w}
+}
+
+// Write serializes a Value into RESP format and writes it to the underlying writer.
+func (w *Writer) Write(v Value) error {
+	_, err := w.writer.Write(v.Marshal())
+	return err
+}
+
+// Marshal converts a Value into its RESP wire representation.
+// It returns the exact bytes that should be sent to the client.
+func (v Value) Marshal() []byte {
+	switch v.typ {
+	case "array":
+		return v.marshalArray()
+	case "bulk":
+		return v.marshalBulk()
+	case "string":
+		return v.marshalString()
+	case "null":
+		return v.marshallNull()
+	case "error":
+		return v.marshallError()
+	default:
+		// Unknown type hence return empty response
+		return []byte{}
+	}
+}
+
+// marshalString encodes a RESP simple string.
+func (v Value) marshalString() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, STRING)     // '+'
+	bytes = append(bytes, v.str...)   // string content
+	bytes = append(bytes, '\r', '\n') // CRLF terminator
+
+	return bytes
+}
+
+// marshalBulk encodes a RESP bulk string.
+func (v Value) marshalBulk() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, BULK)                         // '$'
+	bytes = append(bytes, strconv.Itoa(len(v.bulk))...) // length as ASCII digits
+	bytes = append(bytes, '\r', '\n')                   // end of length line
+	bytes = append(bytes, v.bulk...)                    // raw bulk data
+	bytes = append(bytes, '\r', '\n')                   // CRLF after data
+
+	return bytes
+}
+
+// marshalArray encodes a RESP array.
+func (v Value) marshalArray() []byte {
+	arrayLength := len(v.array)
+
+	var bytes []byte
+	bytes = append(bytes, ARRAY) // '*'
+	// When you write `append(byteSlice, someString...)``
+	// Go automatically converts the string to []byte
+	// So this is equvalent to `append(bytes, []byte(strconv.Itoa(arrayLength))...)`
+	bytes = append(bytes, strconv.Itoa(arrayLength)...)
+	bytes = append(bytes, '\r', '\n')
+
+	// Marshal each element and append its bytes
+	// Each array element knows how to convert itself into RESP bytes
+	for i := 0; i < arrayLength; i++ {
+		bytes = append(bytes, v.array[i].Marshal()...)
+	}
+
+	return bytes
+}
+
+// marshallError encodes a RESP error.
+func (v Value) marshallError() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, ERROR) // '-'
+	bytes = append(bytes, v.str...)
+	bytes = append(bytes, '\r', '\n')
+
+	return bytes
+}
+
+// marshallNull encodes a RESP null bulk string.
+// empty string ≠ null
+// $-1\r\n = key does not exist
+func (v Value) marshallNull() []byte {
+	return []byte("$-1\r\n")
 }
