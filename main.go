@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 )
 
 func main() {
@@ -21,8 +22,6 @@ func main() {
 		return
 	}
 
-	defer conn.Close()
-
 	defer func() {
 		err := conn.Close()
 		if err != nil {
@@ -31,8 +30,8 @@ func main() {
 		}
 	}()
 
-	resp := NewResp(conn)
 	for {
+		resp := NewResp(conn)
 		value, err := resp.Read()
 		if err != nil {
 			if err == io.EOF {
@@ -41,12 +40,32 @@ func main() {
 			fmt.Printf("error reading from client: %v", err)
 		}
 
-		fmt.Println(value)
+		if value.typ != "array" {
+			fmt.Println("Invalid request, expected array")
+			continue
+		}
+
+		if len(value.array) == 0 {
+			fmt.Println("Invalid request, expected array length > 0")
+			continue
+		}
+
+		command := strings.ToUpper(value.array[0].bulk)
+
+		// In Go, slicing beyond the length returns an empty slice, not a panic.
+		// Hence no need to check for array length here.
+		args := value.array[1:]
 
 		writer := NewWriter(conn)
-		writer.Write(Value{typ: "string", str: "PONG"})
-		if err != nil {
-			fmt.Printf("error writing to client: %v", err)
+
+		handler, ok := Handlers[command]
+		if !ok {
+			fmt.Println("Invalid command: ", command)
+			writer.Write(Value{typ: "string", str: ""})
+			continue
 		}
+
+		result := handler(args)
+		writer.Write(result)
 	}
 }

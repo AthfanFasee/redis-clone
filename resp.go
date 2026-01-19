@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// Wire format prefixes
 	STRING  = '+'
 	ERROR   = '-'
 	INTEGER = ':'
@@ -42,8 +43,8 @@ func (r *Resp) readLine() (line []byte, bytesRead int, err error) {
 			return nil, 0, err
 		}
 
-		// Taking `$5\r\n` as an example, n will be 4, not 2.
-		// n counts all bytes read from the wire, including `\r\n`.
+		// Taking `$5\r\n` as an example, bytesRead will be 4, not 2.
+		// bytesRead counts all bytes read from the wire, including `\r\n`.
 		// This is critical for RESP parsing, since higher-level parsers
 		// need to know exactly how many bytes were consumed and where
 		// the next value starts in the stream.
@@ -94,7 +95,7 @@ func (r *Resp) Read() (Value, error) {
 	default:
 		// RESP defines additional types (simple strings, errors, integers).
 		// Returning an error here prevents silent protocol desync.
-		return Value{}, fmt.Errorf("unknown RESP type byte: %q", respType)
+		return Value{}, fmt.Errorf("unknown RESP type byte: %q", string(respType))
 	}
 }
 
@@ -223,7 +224,7 @@ func (v Value) marshalArray() []byte {
 
 	var bytes []byte
 	bytes = append(bytes, ARRAY) // '*'
-	// When you write `append(byteSlice, someString...)``
+	// When you write `append(byteSlice, String...)``
 	// Go automatically converts the string to []byte
 	// So this is equvalent to `append(bytes, []byte(strconv.Itoa(arrayLength))...)`
 	bytes = append(bytes, strconv.Itoa(arrayLength)...)
