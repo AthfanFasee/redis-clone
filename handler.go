@@ -17,11 +17,14 @@ const (
 
 var Handlers = map[string]func([]Value) Value{
 	"PING":    ping,
+	"EXISTS":  exists,
 	"SET":     set,
 	"GET":     get,
+	"DEL":     del,
 	"HSET":    hset,
 	"HGET":    hget,
 	"HGETALL": hgetall,
+	"HDEL":    hdel,
 }
 
 // ping responds with PONG or echoes back the provided argument.
@@ -187,6 +190,42 @@ func get(args []Value) Value {
 	return Value{typ: TYPE_BULK, bulk: value}
 }
 
+// del handles the DEL command, removing one or more keys.
+// Returns the number of keys that were removed.
+func del(args []Value) Value {
+	if len(args) == 0 {
+		return Value{typ: TYPE_ERROR, str: "ERR wrong number of arguments for 'del' command"}
+	}
+
+	count := 0
+	for _, arg := range args {
+		key := arg.bulk
+		if store.Delete(key) {
+			count++
+		}
+	}
+
+	return Value{typ: TYPE_INTEGER, num: count}
+}
+
+// exists handles the EXISTS command, checking if one or more keys exist.
+// Returns the number of keys that exist.
+func exists(args []Value) Value {
+	if len(args) == 0 {
+		return Value{typ: TYPE_ERROR, str: "ERR wrong number of arguments for 'exists' command"}
+	}
+
+	count := 0
+	for _, arg := range args {
+		key := arg.bulk
+		if store.Exists(key) {
+			count++
+		}
+	}
+
+	return Value{typ: TYPE_INTEGER, num: count}
+}
+
 // hset handles the HSET command, storing a field-value pair in a hash.
 func hset(args []Value) Value {
 	if len(args) != 3 {
@@ -243,4 +282,24 @@ func hgetall(args []Value) Value {
 	}
 
 	return Value{typ: TYPE_ARRAY, array: result}
+}
+
+// hdel handles the HDEL command, removing one or more fields from a hash.
+// Returns the number of fields that were removed.
+func hdel(args []Value) Value {
+	if len(args) < 2 {
+		return Value{typ: TYPE_ERROR, str: "ERR wrong number of arguments for 'hdel' command"}
+	}
+
+	hash := args[0].bulk
+	count := 0
+
+	for i := 1; i < len(args); i++ {
+		field := args[i].bulk
+		if hashStore.Delete(hash, field) {
+			count++
+		}
+	}
+
+	return Value{typ: TYPE_INTEGER, num: count}
 }
