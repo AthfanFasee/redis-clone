@@ -69,7 +69,7 @@ HGETALL user:1
 
 # HDEL - Delete hash fields
 HDEL user:1 email                # Returns: (integer) 1
-HDEL user:1 f1 f2 f3             # Returns: (integer) 2
+HDEL user:1 f1 f2                # Returns: (integer) 2
 ```
 
 ## Architecture
