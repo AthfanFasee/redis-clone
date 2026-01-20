@@ -42,7 +42,7 @@ GET missing             # Returns: (nil)
 
 # DEL - Delete keys
 DEL name                # Returns: (integer) 1
-DEL key1 key2 key3      # Returns: (integer) 2
+DEL key1 key2           # Returns: (integer) 2
 
 # EXISTS - Check existence
 EXISTS name             # Returns: (integer) 1
