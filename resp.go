@@ -111,7 +111,7 @@ func (r *Resp) readArray() (Value, error) {
 
 	// Parse each element recursively using Read()
 	v.array = make([]Value, arrayLength)
-	for i := 0; i < arrayLength; i++ {
+	for i := range arrayLength {
 		arrayElement, err := r.Read()
 		if err != nil {
 			return v, err
@@ -232,7 +232,7 @@ func (v Value) marshalArray() []byte {
 
 	// Marshal each element and append its bytes
 	// Each array element knows how to convert itself into RESP bytes
-	for i := 0; i < arrayLength; i++ {
+	for i := range arrayLength {
 		bytes = append(bytes, v.array[i].Marshal()...)
 	}
 
