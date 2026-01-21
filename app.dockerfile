@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o redis-clone .
 # RUN STAGE
 FROM alpine:3.23
 
-# Install ca-certificates for HTTPS (if needed later)
+# Install ca-certificates for HTTPS
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
